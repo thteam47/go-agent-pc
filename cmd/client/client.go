@@ -2,7 +2,6 @@ package clienthttp
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -10,30 +9,41 @@ import (
 	"path"
 	"strings"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/golang/glog"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	gw "github.com/thteam47/go-identity-authen-api/pkg/pb"
+	gw "github.com/thteam47/common/api/agent-pc"
 	"google.golang.org/grpc"
 )
 
 func Run(lis net.Listener, grpc_port string, http_port string) error {
-	grpcServerEndpoint := flag.String("grpc-server-endpoint", grpc_port, "gRPC server endpoint")
-	flag.Parse()
-	log.Printf("dial server %s", *grpcServerEndpoint)
+	// grpcServerEndpoint := flag.String("grpc-server-endpoint", grpc_port, "gRPC server endpoint")
+	// log.Printf("dial server %s", *grpcServerEndpoint)
 	transportOption := grpc.WithInsecure()
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	dialOpts := []grpc.DialOption{transportOption}
-	gwmux := runtime.NewServeMux()
+	gwmux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.HTTPBodyMarshaler{
+		Marshaler: &runtime.JSONPb{
+			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames:   true,
+				EmitUnpopulated: true,
+			},
+			UnmarshalOptions: protojson.UnmarshalOptions{
+				DiscardUnknown: true,
+			},
+		},
+	}))
 
-	err := gw.RegisterIdentityAuthenServiceHandlerFromEndpoint(ctx, gwmux, *grpcServerEndpoint, dialOpts)
+	err := gw.RegisterAgentpcServiceHandlerFromEndpoint(ctx, gwmux, grpc_port, dialOpts)
 	if err != nil {
 		return err
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", gwmux)
-	mux.HandleFunc("/swagger/", serveSwaggerFile)
+	mux.HandleFunc("/agent-pc/", serveSwaggerFile)
 	log.Println("REST server ready...")
 	// s := &http.Server{Handler: allowCORS(mux)}
 	return http.ListenAndServe(http_port, allowCORS(mux))
@@ -45,8 +55,8 @@ func serveSwaggerFile(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	p := strings.TrimPrefix(r.URL.Path, "/swagger")
-	p = path.Join("../pkg/client/api/", p)
+	p := strings.TrimPrefix(r.URL.Path, "/agent-pc")
+	p = path.Join("./pkg/client/api/", p)
 	fmt.Printf("Serving swagger-file: %s\r\n", p)
 	http.ServeFile(w, r, p)
 }
@@ -59,13 +69,17 @@ func preflightHandler(w http.ResponseWriter, r *http.Request) {
 }
 func allowCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if origin := r.Header.Get("Origin"); origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			if r.Method == "OPTIONS" && r.Header.Get("Access-Control-Request-Method") != "" {
-				preflightHandler(w, r)
-				return
-			}
-		}
-		h.ServeHTTP(w, r)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+        // Xử lý preflight request (nếu có)
+        if r.Method == "OPTIONS" {
+            w.WriteHeader(http.StatusOK)
+            return
+        }
+
+        // Gọi handler ban đầu
+        h.ServeHTTP(w, r)
 	})
 }

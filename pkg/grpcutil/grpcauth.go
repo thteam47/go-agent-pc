@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/thteam47/go-identity-authen-api/pkg/db"
-	"github.com/thteam47/go-identity-authen-api/pkg/models"
-	"github.com/thteam47/go-identity-authen-api/pkg/pb"
+	"github.com/thteam47/go-agent-pc/pkg/db"
+	"github.com/thteam47/go-agent-pc/pkg/models"
+	"github.com/thteam47/common/api/agent-pc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"

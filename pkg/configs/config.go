@@ -10,28 +10,28 @@ import (
 )
 
 type Config struct {
-	GrpcPort       string               `yaml:"grpc_port"`
-	HttpPort       string               `yaml:"http_port"`
-	MongoDb        MongoDB              `yaml:"mongo_db"`
-	RedisCache     Redis                `yaml:"redis_cache"`
-	KeyJwt         string               `yaml:"key_jwt"`
-	GrpcClientConn GrpcClientConnConfig `yaml:"grpc_conn"`
-	Exp            time.Duration        `yaml:"exp"`
-	TotpSecret     string               `yaml:"totp_secret"`
-	TimeoutRedis   time.Duration        `yaml:"time_out_redis"`
-	TimeRequestId  time.Duration        `yaml:"time_request_id"`
-	TimeEmailOtp   time.Duration        `yaml:"time_email_otp"`
+	GrpcPort       string               `mapstructure:"grpc_port"`
+	HttpPort       string               `mapstructure:"http_port"`
+	MongoDb        MongoDB              `mapstructure:"mongo_db"`
+	RedisCache     Redis                `mapstructure:"redis_cache"`
+	KeyJwt         string               `mapstructure:"key_jwt"`
+	GrpcClientConn GrpcClientConnConfig `mapstructure:"grpc_conn"`
+	Exp            time.Duration        `mapstructure:"exp"`
+	TotpSecret     string               `mapstructure:"totp_secret"`
+	TimeoutRedis   time.Duration        `mapstructure:"time_out_redis"`
+	TimeRequestId  time.Duration        `mapstructure:"time_request_id"`
+	TimeEmailOtp   time.Duration        `mapstructure:"time_email_otp"`
 }
 
 type MongoDB struct {
-	Url        string `yaml:"url"`
-	DbName     string `yaml:"db_name"`
-	Collection string `yaml:"collection"`
+	Url        string `mapstructure:"url"`
+	DbName     string `mapstructure:"db_name"`
+	Collection string `mapstructure:"collection"`
 }
 
 type Redis struct {
-	Address string `yaml:"address"`
-	Url     string `yaml:"url"`
+	Address string `mapstructure:"address"`
+	Url     string `mapstructure:"url"`
 }
 
 type GrpcClientConnConfig struct {

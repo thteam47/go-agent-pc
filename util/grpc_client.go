@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/thteam47/go-identity-authen-api/pkg/configs"
+	"github.com/thteam47/go-agent-pc/pkg/configs"
 	"google.golang.org/grpc"
 )
 

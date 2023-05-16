@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-redis/cache/v8"
-	redisrepo "github.com/thteam47/go-identity-authen-api/pkg/db/redis"
+	redisrepo "github.com/thteam47/go-agent-pc/pkg/db/redis"
 )
 
 type RedisRepositoryImpl struct {

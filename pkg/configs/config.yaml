@@ -1,5 +1,5 @@
-grpc_port: ":9000"
-http_port: ":9001"
+grpc_port: ":15000"
+http_port: ":15001"
 mongo_db:
   url: "mongodb://admin:admin@localhost:27017"
   db_name: "identity-authen-api"
@@ -10,10 +10,74 @@ redis_cache:
 grpc_conn:
   address: ":11000"
   timeout: 20s
-  access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl9pbmZvIjp7ImF1dGhlbnRpY2F0aW9uX2RvbmUiOnRydWUsInN1YmplY3QiOiJzZXJ2aWNlIiwiZXhwIjozMDU0MTEwMDM2LCJyb2xlIjoiYWRtaW4iLCJwZXJtaXNzaW9uX2FsbCI6dHJ1ZX0sImV4cCI6MzA1NDExMDAzNn0.vRMlXrwbSCsnJ0K78PzS2lHZ60tYxNrpZ31U6xIusqo"
+  access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl9pbmZvIjp7ImF1dGhlbnRpY2F0aW9uX2RvbmUiOnRydWUsInN1YmplY3QiOiJzZXJ2aWNlOmNvbW1vbiIsImV4cCI6MzA1NDExMDAzNiwicm9sZSI6WyJhZG1pbiJdLCJwZXJtaXNzaW9uX2FsbCI6dHJ1ZX0sImV4cCI6MzA1NDExMDAzNn0.QEiyFLjGCkICxUn9tSDfnz3Z4xbqJc4hp743GrbPWwY"
 key_jwt: "thteam47"
 exp: 24h
 totp_secret: "thteam47"
 time_out_redis: 10s
 time_request_id: 5m
 time_email_otp: 5m
+components:
+  user-service:
+    address: ":11000"
+    timeout: 20s
+    access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl9pbmZvIjp7ImF1dGhlbnRpY2F0aW9uX2RvbmUiOnRydWUsInN1YmplY3QiOiJzZXJ2aWNlOmNvbW1vbiIsImV4cCI6MzA1NDExMDAzNiwicm9sZSI6WyJhZG1pbiJdLCJwZXJtaXNzaW9uX2FsbCI6dHJ1ZX0sImV4cCI6MzA1NDExMDAzNn0.QEiyFLjGCkICxUn9tSDfnz3Z4xbqJc4hp743GrbPWwY"
+  user-repository:
+    mongo-client-wrapper:
+      url: "mongodb://admin:admin@localhost:27017/"
+      database: "identity-api"
+  key-info-repository:
+    sqlite-client-wrapper:
+      type: "sqlite3"
+      connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/key_info.db"
+      encryption_enabled: false
+      encryption_key: "thteam47"
+      max_idle_connections: 2
+      max_open_connections: 3
+      log_mode: false
+  key-info-item-repository:
+    sqlite-client-wrapper:
+      type: "sqlite3"
+      connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/key_info.db"
+      encryption_enabled: false
+      encryption_key: "thteam47"
+      max_idle_connections: 2
+      max_open_connections: 3
+      log_mode: false
+  key-info-item-phase3-repository:
+    sqlite-client-wrapper:
+      type: "sqlite3"
+      connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/key_info_phase3.db"
+      encryption_enabled: false
+      encryption_key: "thteam47"
+      max_idle_connections: 2
+      max_open_connections: 3
+      log_mode: false
+  result-card-repository:
+    sqlite-client-wrapper:
+      type: "sqlite3"
+      connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/survey.db"
+      encryption_enabled: false
+      encryption_key: "thteam47"
+      max_idle_connections: 2
+      max_open_connections: 3
+      log_mode: false
+  process-data-survey-repository:
+    sqlite-client-wrapper:
+      type: "sqlite3"
+      connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/process_data_survey.db"
+      encryption_enabled: false
+      encryption_key: "thteam47"
+      max_idle_connections: 2
+      max_open_connections: 3
+      log_mode: false
+  identity-authen-service:
+    port: "9001"
+  identity-service:
+    port: "10001"
+  customer-service:
+    port: "12001"
+  recommend-service:
+    port: "14001"
+  survey-service:
+    port: "11001"

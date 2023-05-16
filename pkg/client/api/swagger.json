@@ -1,12 +1,12 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "identity-authen-api.proto",
+    "title": "agent-pc.proto",
     "version": "version not set"
   },
   "tags": [
     {
-      "name": "IdentityAuthenService"
+      "name": "AgentpcService"
     }
   ],
   "consumes": [
@@ -16,78 +16,14 @@
     "application/json"
   ],
   "paths": {
-    "/v1/identity-authen-api/forgot_password": {
+    "/do_survey/{value}": {
       "post": {
-        "operationId": "IdentityAuthenService_ForgotPassword",
+        "operationId": "FakeDoSurveyGenerate",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/identity_authen_apiMessageResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiForgotPasswordRequest"
-            }
-          }
-        ],
-        "tags": [
-          "IdentityAuthenService"
-        ]
-      }
-    },
-    "/v1/identity-authen-api/forgot_password/update": {
-      "post": {
-        "operationId": "IdentityAuthenService_UpdateForgotPassword",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiMessageResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiUpdatePasswordRequest"
-            }
-          }
-        ],
-        "tags": [
-          "IdentityAuthenService"
-        ]
-      }
-    },
-    "/v1/identity-authen-api/get_mfa/{value}": {
-      "get": {
-        "operationId": "IdentityAuthenService_GetMfaType",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiMfaResponse"
+              "$ref": "#/definitions/agent_pcMessageResponse"
             }
           },
           "default": {
@@ -105,87 +41,32 @@
             "type": "string"
           },
           {
-            "name": "ctx.accessToken",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "IdentityAuthenService"
-        ]
-      }
-    },
-    "/v1/identity-authen-api/login": {
-      "post": {
-        "operationId": "IdentityAuthenService_Login",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiLoginResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
             "name": "body",
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/identity_authen_apiLoginRequest"
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
             }
           }
         ],
         "tags": [
-          "IdentityAuthenService"
+          "AgentpcService"
         ]
       }
     },
-    "/v1/identity-authen-api/logout": {
-      "get": {
-        "operationId": "IdentityAuthenService_Logout",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiMessageResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "ctx.accessToken",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "IdentityAuthenService"
-        ]
-      }
-    },
-    "/v1/identity-authen-api/prepare_login": {
+    "/fake/key_info/{value}": {
       "post": {
-        "operationId": "IdentityAuthenService_PrepareLogin",
+        "operationId": "FakeGenerateKeyInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/identity_authen_apiPrepareLoginResponse"
+              "$ref": "#/definitions/agent_pcMessageResponse"
             }
           },
           "default": {
@@ -197,71 +78,7 @@
         },
         "parameters": [
           {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiPrepareLoginRequest"
-            }
-          }
-        ],
-        "tags": [
-          "IdentityAuthenService"
-        ]
-      }
-    },
-    "/v1/identity-authen-api/registers": {
-      "post": {
-        "operationId": "IdentityAuthenService_RegisterUser",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiMessageResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiUserRegisterRequest"
-            }
-          }
-        ],
-        "tags": [
-          "IdentityAuthenService"
-        ]
-      }
-    },
-    "/v1/identity-authen-api/update_mfa/{userId}": {
-      "put": {
-        "operationId": "IdentityAuthenService_UpdateMfa",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/identity_authen_apiMessageResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "userId",
+            "name": "value",
             "in": "path",
             "required": true,
             "type": "string"
@@ -274,31 +91,25 @@
               "type": "object",
               "properties": {
                 "ctx": {
-                  "$ref": "#/definitions/identity_authen_apiContext"
-                },
-                "mfas": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/identity_authen_apiMfa"
-                  }
+                  "$ref": "#/definitions/agent_pcContext"
                 }
               }
             }
           }
         ],
         "tags": [
-          "IdentityAuthenService"
+          "AgentpcService"
         ]
       }
     },
-    "/v1/identity-authen-api/update_password/{userId}": {
-      "put": {
-        "operationId": "IdentityAuthenService_UpdatePassword",
+    "/get_categories_by_recommend_tenant": {
+      "get": {
+        "operationId": "GetCategoriesByRecommendTenant",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/identity_authen_apiMessageResponse"
+              "$ref": "#/definitions/agent_pcListCategoryResponse"
             }
           },
           "default": {
@@ -310,7 +121,237 @@
         },
         "parameters": [
           {
-            "name": "userId",
+            "name": "ctx.domain_id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.token_agent",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.part",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/get_survey_by_tenant/{value}": {
+      "get": {
+        "operationId": "GetSurveyByTenant",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcListSurveyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "ctx.domain_id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.token_agent",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.part",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/get_survey_by_tenant_id": {
+      "get": {
+        "operationId": "GetSurveyByTenantId",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcListSurveyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "ctx.domain_id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.token_agent",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.part",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/get_survey_by_user": {
+      "get": {
+        "operationId": "GetSurveyByUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcListSurveyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "ctx.domain_id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.token_agent",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.part",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/key_public/receive/item": {
+      "post": {
+        "operationId": "KeyPublicItemGenerate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/agent_pcRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/key_public/receive/item/{value}": {
+      "post": {
+        "operationId": "FakeKeyPublicItemGenerate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
             "in": "path",
             "required": true,
             "type": "string"
@@ -323,28 +364,25 @@
               "type": "object",
               "properties": {
                 "ctx": {
-                  "$ref": "#/definitions/identity_authen_apiContext"
-                },
-                "password": {
-                  "type": "string"
+                  "$ref": "#/definitions/agent_pcContext"
                 }
               }
             }
           }
         ],
         "tags": [
-          "IdentityAuthenService"
+          "AgentpcService"
         ]
       }
     },
-    "/v1/identity-authen-api/verify-forgot-password": {
-      "get": {
-        "operationId": "IdentityAuthenService_VerifyForgotPassword",
+    "/login": {
+      "post": {
+        "operationId": "Login",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/identity_authen_apiMessageResponse"
+              "$ref": "#/definitions/agent_pcLoginResponse"
             }
           },
           "default": {
@@ -356,25 +394,27 @@
         },
         "parameters": [
           {
-            "name": "ctx.accessToken",
-            "in": "query",
-            "required": false,
-            "type": "string"
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/agent_pcLoginRequest"
+            }
           }
         ],
         "tags": [
-          "IdentityAuthenService"
+          "AgentpcService"
         ]
       }
     },
-    "/v1/identity-authen-api/verify-user": {
+    "/logout": {
       "get": {
-        "operationId": "IdentityAuthenService_VerifyUser",
+        "operationId": "Logout",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/identity_authen_apiMessageResponse"
+              "$ref": "#/definitions/agent_pcMessageResponse"
             }
           },
           "default": {
@@ -386,40 +426,693 @@
         },
         "parameters": [
           {
-            "name": "ctx.accessToken",
+            "name": "ctx.domain_id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.token_agent",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.part",
             "in": "query",
             "required": false,
             "type": "string"
           }
         ],
         "tags": [
-          "IdentityAuthenService"
+          "AgentpcService"
+        ]
+      }
+    },
+    "/prepare_login": {
+      "post": {
+        "operationId": "PrepareLogin",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcPrepareLoginResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/agent_pcPrepareLoginRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/process_data/survey/{value}": {
+      "post": {
+        "operationId": "ProcessDataSurvey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/process_data/survey_2/{value}": {
+      "post": {
+        "operationId": "ProcessDataSurvey2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/request_genarate_recommend/cbf/{value}": {
+      "post": {
+        "operationId": "RequestGenarateRecommendCbf",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcGenarateRecommendResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/request_genarate_recommend/cf/{value}": {
+      "post": {
+        "operationId": "RequestGenarateRecommendCf",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcGenarateRecommendResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/request_genarate_recommend/user/cbf": {
+      "post": {
+        "operationId": "RequestGenarateRecommendUserCbf",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcListCategoryRecommendResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/agent_pcRequestGenarateRecommendUser"
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/request_genarate_recommend/user/cf": {
+      "post": {
+        "operationId": "RequestGenarateRecommendUserCf",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcListCategoryRecommendResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/agent_pcRequestGenarateRecommendUser"
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/send_process_data/survey/one_part/{value}": {
+      "post": {
+        "operationId": "FakeSendProcessDataSurveyOnePart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/send_process_data/survey/phase3_two_part/{value}": {
+      "post": {
+        "operationId": "FakeSendProcessDataSurveyPhase3TwoPart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/send_process_data/survey/phase4_two_part/{value}": {
+      "post": {
+        "operationId": "FakeSendProcessDataSurveyPhase4TwoPart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/send_process_data/survey/phase5_two_part/{value}": {
+      "post": {
+        "operationId": "FakeSendProcessDataSurveyPhase5TwoPart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ctx": {
+                  "$ref": "#/definitions/agent_pcContext"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "GetById",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcUserResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "ctx.domain_id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.token_agent",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.part",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      },
+      "put": {
+        "operationId": "Update",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcUserResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/agent_pcUpdateUserRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AgentpcService"
         ]
       }
     }
   },
   "definitions": {
-    "identity_authen_apiContext": {
+    "agent_pcCategory": {
       "type": "object",
       "properties": {
-        "accessToken": {
+        "category_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "created_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "updated_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "domain_id": {
+          "type": "string"
+        },
+        "type": {
           "type": "string"
         }
       }
     },
-    "identity_authen_apiForgotPasswordRequest": {
+    "agent_pcCategoryRecommend": {
+      "type": "object",
+      "properties": {
+        "category_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "created_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "updated_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "domain_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "process_data": {
+          "type": "number",
+          "format": "float"
+        }
+      }
+    },
+    "agent_pcContext": {
+      "type": "object",
+      "properties": {
+        "domain_id": {
+          "type": "string"
+        },
+        "access_token": {
+          "type": "string"
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "token_agent": {
+          "type": "string"
+        },
+        "part": {
+          "type": "string"
+        }
+      }
+    },
+    "agent_pcGenarateRecommendResponse": {
       "type": "object",
       "properties": {
         "data": {
-          "type": "string"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/agent_pcResultRecommend"
+          }
         }
       }
     },
-    "identity_authen_apiLoginRequest": {
+    "agent_pcListCategoryRecommendResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/agent_pcCategoryRecommend"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "agent_pcListCategoryResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/agent_pcCategory"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "agent_pcListSurveyResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/agent_pcSurvey"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "agent_pcLoginRequest": {
       "type": "object",
       "properties": {
         "ctx": {
-          "$ref": "#/definitions/identity_authen_apiContext"
+          "$ref": "#/definitions/agent_pcContext"
         },
         "type": {
           "type": "string"
@@ -434,21 +1127,27 @@
           "type": "integer",
           "format": "int32"
         },
-        "requestId": {
+        "request_id": {
           "type": "string"
         },
-        "typeMfa": {
+        "type_mfa": {
+          "type": "string"
+        },
+        "user_type": {
+          "type": "string"
+        },
+        "domain": {
           "type": "string"
         }
       }
     },
-    "identity_authen_apiLoginResponse": {
+    "agent_pcLoginResponse": {
       "type": "object",
       "properties": {
         "token": {
           "type": "string"
         },
-        "errorCode": {
+        "error_code": {
           "type": "integer",
           "format": "int32"
         },
@@ -457,7 +1156,7 @@
         }
       }
     },
-    "identity_authen_apiMessageResponse": {
+    "agent_pcMessageResponse": {
       "type": "object",
       "properties": {
         "ok": {
@@ -468,68 +1167,48 @@
         }
       }
     },
-    "identity_authen_apiMfa": {
+    "agent_pcPermission": {
       "type": "object",
       "properties": {
-        "type": {
+        "privilege": {
           "type": "string"
         },
-        "enabled": {
-          "type": "boolean"
-        },
-        "secret": {
-          "type": "string"
-        },
-        "publicData": {
-          "type": "string"
-        },
-        "configured": {
-          "type": "boolean"
-        },
-        "url": {
-          "type": "string"
-        }
-      }
-    },
-    "identity_authen_apiMfaResponse": {
-      "type": "object",
-      "properties": {
-        "mfas": {
+        "actions": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/identity_authen_apiMfa"
+            "type": "string"
           }
         }
       }
     },
-    "identity_authen_apiPrepareLoginRequest": {
+    "agent_pcPrepareLoginRequest": {
       "type": "object",
       "properties": {
         "ctx": {
-          "$ref": "#/definitions/identity_authen_apiContext"
+          "$ref": "#/definitions/agent_pcContext"
         }
       }
     },
-    "identity_authen_apiPrepareLoginResponse": {
+    "agent_pcPrepareLoginResponse": {
       "type": "object",
       "properties": {
         "token": {
           "type": "string"
         },
-        "errorCode": {
+        "error_code": {
           "type": "integer",
           "format": "int32"
         },
         "message": {
           "type": "string"
         },
-        "requestId": {
+        "request_id": {
           "type": "string"
         },
-        "typeMfa": {
+        "type_mfa": {
           "type": "string"
         },
-        "availableMfas": {
+        "available_mfas": {
           "type": "array",
           "items": {
             "type": "string"
@@ -540,27 +1219,139 @@
         },
         "url": {
           "type": "string"
+        },
+        "token_agent": {
+          "type": "string"
         }
       }
     },
-    "identity_authen_apiUpdatePasswordRequest": {
+    "agent_pcQuestion": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "answers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "type": {
+          "type": "string"
+        },
+        "category_id": {
+          "type": "string"
+        },
+        "position": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "agent_pcRequest": {
       "type": "object",
       "properties": {
         "ctx": {
-          "$ref": "#/definitions/identity_authen_apiContext"
+          "$ref": "#/definitions/agent_pcContext"
+        }
+      }
+    },
+    "agent_pcRequestGenarateRecommendUser": {
+      "type": "object",
+      "properties": {
+        "ctx": {
+          "$ref": "#/definitions/agent_pcContext"
         },
-        "userId": {
+        "process_data": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    },
+    "agent_pcResultRecommend": {
+      "type": "object",
+      "properties": {
+        "position_item": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "process_data": {
+          "type": "number",
+          "format": "float"
+        }
+      }
+    },
+    "agent_pcSurvey": {
+      "type": "object",
+      "properties": {
+        "survey_id": {
           "type": "string"
         },
-        "password": {
+        "user_id_create": {
+          "type": "string"
+        },
+        "user_id_verify": {
+          "type": "string"
+        },
+        "user_id_join": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/agent_pcQuestion"
+          }
+        },
+        "status": {
+          "type": "string"
+        },
+        "created_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "updated_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "domain_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "name": {
           "type": "string"
         }
       }
     },
-    "identity_authen_apiUserRegisterRequest": {
+    "agent_pcUpdateUserRequest": {
       "type": "object",
       "properties": {
-        "fullName": {
+        "ctx": {
+          "$ref": "#/definitions/agent_pcContext"
+        },
+        "data": {
+          "$ref": "#/definitions/agent_pcUser"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "agent_pcUser": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "type": "string"
+        },
+        "full_name": {
           "type": "string"
         },
         "email": {
@@ -568,6 +1359,55 @@
         },
         "username": {
           "type": "string"
+        },
+        "permission_all": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/agent_pcPermission"
+          }
+        },
+        "status": {
+          "type": "string"
+        },
+        "created_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "updated_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "domain_id": {
+          "type": "string"
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "type": {
+          "type": "string"
+        },
+        "user_type": {
+          "type": "string"
+        }
+      }
+    },
+    "agent_pcUserResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/agent_pcUser"
         }
       }
     },

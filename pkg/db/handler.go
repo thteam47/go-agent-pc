@@ -7,9 +7,9 @@ import (
 	"github.com/go-redis/cache/v8"
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
-	"github.com/thteam47/go-identity-authen-api/pkg/configs"
-	redisrepo "github.com/thteam47/go-identity-authen-api/pkg/db/redis"
-	redisImpl "github.com/thteam47/go-identity-authen-api/pkg/db/redis/default"
+	"github.com/thteam47/go-agent-pc/pkg/configs"
+	redisrepo "github.com/thteam47/go-agent-pc/pkg/db/redis"
+	redisImpl "github.com/thteam47/go-agent-pc/pkg/db/redis/default"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

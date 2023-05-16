@@ -1,6 +1,6 @@
 package grpcauth
 
-import "github.com/thteam47/go-identity-authen-api/pkg/models"
+import "github.com/thteam47/go-agent-pc/pkg/models"
 
 type UserContext interface {
 	GetUserId() string

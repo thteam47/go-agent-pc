@@ -7,7 +7,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/thteam47/go-identity-authen-api/errutil"
+	"github.com/thteam47/go-agent-pc/errutil"
 )
 
 const (
