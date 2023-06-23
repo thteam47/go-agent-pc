@@ -1,11 +1,10 @@
 package grpcapp
 
 import (
-	"github.com/thteam47/common/entity"
 	"context"
+	"github.com/thteam47/common/entity"
 
 	pb "github.com/thteam47/common/api/agent-pc"
-	grpcauth "github.com/thteam47/common/grpcutil"
 	"github.com/thteam47/go-agent-pc/errutil"
 	"github.com/thteam47/go-agent-pc/pkg/models"
 	"github.com/thteam47/go-agent-pc/util"
@@ -42,10 +41,20 @@ func makeSurveys(items []models.Survey) ([]*pb.Survey, error) {
 	return surveys, nil
 }
 func (inst *AgentpcService) GetSurveyByTenant(ctx context.Context, req *pb.StringRequest) (*pb.ListSurveyResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
 		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
@@ -84,7 +93,7 @@ func (inst *AgentpcService) GetSurveyByUser(ctx context.Context, req *pb.Request
 		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
 	}
 	userContext.SetAccessToken(accessToken)
-	
+
 	surveys, err := inst.componentsContainer.SurveyService().GetSurveysByUserId(userContext.SetDomainId(userInfo.DomainId).Clone().EscalatePrivilege(), userInfo.DomainId, userInfo.UserId)
 	if err != nil {
 		return nil, errutil.Wrap(err, "SurveyService.GetSurveysByUserId")

@@ -8,18 +8,26 @@ import (
 	"github.com/thteam47/common/entity"
 
 	pb "github.com/thteam47/common/api/agent-pc"
-	grpcauth "github.com/thteam47/common/grpcutil"
-	"github.com/thteam47/common/pkg/entityutil"
 	"github.com/thteam47/go-agent-pc/errutil"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func (inst *AgentpcService) ProcessDataSurvey(ctx context.Context, req *pb.StringRequest) (*pb.MessageResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
 		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
@@ -27,11 +35,7 @@ func (inst *AgentpcService) ProcessDataSurvey(ctx context.Context, req *pb.Strin
 	if tenant == nil {
 		return nil, status.Errorf(codes.NotFound, "Tenant not found")
 	}
-	customerID, err := entityutil.GetUserId(userContext)
-	if err != nil {
-		return nil, errutil.Wrap(err, "entityutil.GetUserId")
-	}
-	if customerID != tenant.CustomerId {
+	if userInfo.UserId != tenant.CustomerId {
 		return nil, status.Errorf(codes.PermissionDenied, "PermissionDenied")
 	}
 	users, err := inst.componentsContainer.IdentityService().GetUsers(userContext, req.Value)
@@ -174,11 +178,11 @@ func (inst *AgentpcService) ProcessDataSurvey(ctx context.Context, req *pb.Strin
 					processedDataItem2 = resultCardItem2.PositionOption
 				}
 				err = inst.componentsContainer.ProcessDataSurveyRepository().CreateAndUpdate(userContext, &models.ProcessDataSurvey{
-					DomainId:      user.DomainId,
-					UserId:        user.UserId,
-					PositionUser:  user.Position,
-					PositionItem:  3*countItem + count,
-					ProcessedData: processedDataItem2 * processedDataItem1,
+					DomainId:              user.DomainId,
+					UserId:                user.UserId,
+					PositionUser:          user.Position,
+					PositionItem:          3*countItem + count,
+					ProcessedData:         processedDataItem2 * processedDataItem1,
 					PositionItemOriginal1: int32(j),
 					PositionItemOriginal2: int32(k),
 				})

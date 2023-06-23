@@ -6,17 +6,19 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"log"
 	"math"
 	"math/big"
 	randInt "math/rand"
+	"sync"
+	"time"
 
 	"github.com/thteam47/common-libs/ellipticutil"
 	"github.com/thteam47/common-libs/x509util"
 	pb "github.com/thteam47/common/api/agent-pc"
 	"github.com/thteam47/common/entity"
-	grpcauth "github.com/thteam47/common/grpcutil"
 	recommendApi "github.com/thteam47/common/pkg/apiswagger/recommend-api"
-	"github.com/thteam47/common/pkg/entityutil"
 	"github.com/thteam47/go-agent-pc/errutil"
 	"github.com/thteam47/go-agent-pc/pkg/models"
 	"google.golang.org/grpc/codes"
@@ -26,88 +28,57 @@ import (
 var curve = elliptic.P256()
 
 func (inst *AgentpcService) FakeGenerateKeyInfo(ctx context.Context, req *pb.StringRequest) (*pb.MessageResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenantById").Error())
 	}
 	if tenant == nil {
 		return nil, status.Errorf(codes.NotFound, "Tenant not found")
 	}
-	customerID, err := entityutil.GetUserId(userContext)
-	if err != nil {
-		return nil, errutil.Wrap(err, "entityutil.GetUserId")
-	}
-	if customerID != tenant.CustomerId {
+	if userInfo.UserId != tenant.CustomerId {
 		return nil, status.Errorf(codes.PermissionDenied, "PermissionDenied")
 	}
 	users, err := inst.componentsContainer.IdentityService().GetUsers(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenant")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenant").Error())
 	}
 	if len(users) == 0 {
 		return nil, status.Errorf(codes.NotFound, "User not found")
 	}
 	combinedData, err := inst.componentsContainer.RecommendService().GetCombinedData(userContext, req.Ctx.TokenAgent, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "RecommendService.GetCombinedData")
+		log.Printf(errutil.Wrap(err, "RecommendService.GetCombinedData").Error())
 	}
 	if combinedData == nil {
 		return nil, status.Errorf(codes.NotFound, "CombinedData not found")
 	}
+	totalTimeKeyUser := int64(0)
+	fmt.Println("time.Now().UnixMilli()", time.Now().UnixMilli())
+	coutKeyUser := 0
+	totalTimeKeyItemOnePart := int64(0)
+	coutKeyItemOnePart := 0
+	totalTimeKeyItemTwoPart := int64(0)
+	coutKeyItemTwoPart := 0
+	var mutex sync.Mutex
+	var wg sync.WaitGroup
 	for _, user := range users {
-		keyInfo, err := inst.componentsContainer.KeyInfoRepository().FindLast(userContext, &entity.FindRequest{
-			Filters: []entity.FindRequestFilter{
-				entity.FindRequestFilter{
-					Key:      "DomainId",
-					Value:    user.DomainId,
-					Operator: entity.FindRequestFilterOperatorEqualTo,
-				},
-				entity.FindRequestFilter{
-					Key:      "UserId",
-					Value:    user.UserId,
-					Operator: entity.FindRequestFilterOperatorEqualTo,
-				},
-			},
-		})
-		if err != nil {
-			return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
-		}
-		if keyInfo == nil {
-			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-			if err != nil {
-				panic(err)
-			}
-			publicKey := &privateKey.PublicKey
-			privateKeyGen, err := x509util.GenerateKeyPrivate(privateKey)
-			if err != nil {
-				panic(err)
-			}
-			publicKeyGen, err := x509util.GenerateKeyPublic(publicKey)
-			if err != nil {
-				panic(err)
-			}
-			keyInfo = &models.KeyInfo{
-				UserId:         user.UserId,
-				DomainId:       user.DomainId,
-				PositionUserId: user.Position,
-				KeyPrivate:     privateKeyGen,
-				KeyPublic:      publicKeyGen,
-			}
-			err = inst.componentsContainer.KeyInfoRepository().Create(userContext, keyInfo)
-			if err != nil {
-				return nil, errutil.Wrap(err, "KeyInfoRepository.Create")
-			}
-		}
-		err = inst.componentsContainer.RecommendService().KeyPublicUserSend(userContext, req.Value, req.Ctx.TokenAgent, keyInfo)
-		if err != nil {
-			return nil, errutil.Wrap(err, "RecommendService.KeyPublicUserSend")
-		}
-		for j := 1; j <= int(combinedData.NkTwoPart); j++ {
-			keyInfoItem, err := inst.componentsContainer.KeyInfoItemRepository().FindLast(userContext, &entity.FindRequest{
+		wg.Add(1)
+		go func(user entity.User) {
+			keyInfo, err := inst.componentsContainer.KeyInfoRepository().FindLast(userContext, &entity.FindRequest{
 				Filters: []entity.FindRequestFilter{
 					entity.FindRequestFilter{
 						Key:      "DomainId",
@@ -119,22 +90,14 @@ func (inst *AgentpcService) FakeGenerateKeyInfo(ctx context.Context, req *pb.Str
 						Value:    user.UserId,
 						Operator: entity.FindRequestFilterOperatorEqualTo,
 					},
-					entity.FindRequestFilter{
-						Key:      "PositionItem",
-						Value:    j,
-						Operator: entity.FindRequestFilterOperatorEqualTo,
-					},
-					entity.FindRequestFilter{
-						Key:      "Part",
-						Value:    2,
-						Operator: entity.FindRequestFilterOperatorEqualTo,
-					},
 				},
 			})
 			if err != nil {
-				return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+				log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
+				return
 			}
-			if keyInfoItem == nil {
+			if keyInfo == nil {
+				timeOneUserStart := time.Now().UnixMilli()
 				privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 				if err != nil {
 					panic(err)
@@ -148,119 +111,213 @@ func (inst *AgentpcService) FakeGenerateKeyInfo(ctx context.Context, req *pb.Str
 				if err != nil {
 					panic(err)
 				}
-				keyInfoItem = &models.KeyInfoItem{
-					UserId:       user.UserId,
-					DomainId:     user.DomainId,
-					PositionItem: int32(j),
-					PositionUser: user.Position,
-					KeyPrivate:   privateKeyGen,
-					KeyPublic:    publicKeyGen,
-					Part:         2,
+				keyInfo = &models.KeyInfo{
+					UserId:         user.UserId,
+					DomainId:       user.DomainId,
+					PositionUserId: user.Position,
+					KeyPrivate:     privateKeyGen,
+					KeyPublic:      publicKeyGen,
 				}
-				err = inst.componentsContainer.KeyInfoItemRepository().Create(userContext, keyInfoItem)
+				err = inst.componentsContainer.KeyInfoRepository().Create(userContext, keyInfo)
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.Create")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.Create").Error())
 				}
+				timeOneUserEnd := time.Now().UnixMilli()
+				dentaTime := timeOneUserEnd - timeOneUserStart
+				mutex.Lock()
+				totalTimeKeyUser += dentaTime
+				coutKeyUser++
+				mutex.Unlock()
 			}
-			err = inst.componentsContainer.RecommendService().KeyPublicItemSend(userContext, req.Value, req.Ctx.TokenAgent, keyInfoItem)
+			err = inst.componentsContainer.RecommendService().KeyPublicUserSend(userContext, req.Value, req.Ctx.TokenAgent, keyInfo)
 			if err != nil {
-				return nil, errutil.Wrap(err, "RecommendService.KeyPublicItemSend")
+				log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicUserSend").Error())
 			}
-		}
-		nkOnePart := int(combinedData.NkOnePart1)
-		if user.DomainId == combinedData.TenantId2 {
-			nkOnePart = int(combinedData.NkOnePart2)
-		}
-
-		for j := 1; j <= nkOnePart; j++ {
-			keyInfoItem, err := inst.componentsContainer.KeyInfoItemRepository().FindLast(userContext, &entity.FindRequest{
-				Filters: []entity.FindRequestFilter{
-					entity.FindRequestFilter{
-						Key:      "DomainId",
-						Value:    user.DomainId,
-						Operator: entity.FindRequestFilterOperatorEqualTo,
+			timeOneUserTwoPartStart := time.Now().UnixMilli()
+			for j := 1; j <= int(combinedData.NkTwoPart); j++ {
+				keyInfoItem, err := inst.componentsContainer.KeyInfoItemRepository().FindLast(userContext, &entity.FindRequest{
+					Filters: []entity.FindRequestFilter{
+						entity.FindRequestFilter{
+							Key:      "DomainId",
+							Value:    user.DomainId,
+							Operator: entity.FindRequestFilterOperatorEqualTo,
+						},
+						entity.FindRequestFilter{
+							Key:      "UserId",
+							Value:    user.UserId,
+							Operator: entity.FindRequestFilterOperatorEqualTo,
+						},
+						entity.FindRequestFilter{
+							Key:      "PositionItem",
+							Value:    j,
+							Operator: entity.FindRequestFilterOperatorEqualTo,
+						},
+						entity.FindRequestFilter{
+							Key:      "Part",
+							Value:    2,
+							Operator: entity.FindRequestFilterOperatorEqualTo,
+						},
 					},
-					entity.FindRequestFilter{
-						Key:      "UserId",
-						Value:    user.UserId,
-						Operator: entity.FindRequestFilterOperatorEqualTo,
-					},
-					entity.FindRequestFilter{
-						Key:      "PositionItem",
-						Value:    j,
-						Operator: entity.FindRequestFilterOperatorEqualTo,
-					},
-					entity.FindRequestFilter{
-						Key:      "Part",
-						Value:    1,
-						Operator: entity.FindRequestFilterOperatorEqualTo,
-					},
-				},
-			})
-			if err != nil {
-				return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+				})
+				if err != nil {
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
+				}
+				if keyInfoItem == nil {
+					privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+					if err != nil {
+						panic(err)
+					}
+					publicKey := &privateKey.PublicKey
+					privateKeyGen, err := x509util.GenerateKeyPrivate(privateKey)
+					if err != nil {
+						panic(err)
+					}
+					publicKeyGen, err := x509util.GenerateKeyPublic(publicKey)
+					if err != nil {
+						panic(err)
+					}
+					keyInfoItem = &models.KeyInfoItem{
+						UserId:       user.UserId,
+						DomainId:     user.DomainId,
+						PositionItem: int32(j),
+						PositionUser: user.Position,
+						KeyPrivate:   privateKeyGen,
+						KeyPublic:    publicKeyGen,
+						Part:         2,
+					}
+					err = inst.componentsContainer.KeyInfoItemRepository().Create(userContext, keyInfoItem)
+					if err != nil {
+						log.Printf(errutil.Wrap(err, "KeyInfoRepository.Create").Error())
+					}
+				}
+				err = inst.componentsContainer.RecommendService().KeyPublicItemSend(userContext, req.Value, req.Ctx.TokenAgent, keyInfoItem)
+				if err != nil {
+					log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicItemSend").Error())
+				}
 			}
-			if keyInfoItem == nil {
-				privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+			timeOneUserTwoPartEnd := time.Now().UnixMilli()
+			dentaTimeTwoPart := timeOneUserTwoPartEnd - timeOneUserTwoPartStart
+			mutex.Lock()
+			totalTimeKeyItemTwoPart += dentaTimeTwoPart
+			coutKeyItemTwoPart++
+			mutex.Unlock()
+			nkOnePart := int(combinedData.NkOnePart1)
+			if user.DomainId == combinedData.TenantId2 {
+				nkOnePart = int(combinedData.NkOnePart2)
+			}
+			timeOneUserOnePartStart := time.Now().UnixMilli()
+			for j := 1; j <= nkOnePart; j++ {
+				keyInfoItem, err := inst.componentsContainer.KeyInfoItemRepository().FindLast(userContext, &entity.FindRequest{
+					Filters: []entity.FindRequestFilter{
+						entity.FindRequestFilter{
+							Key:      "DomainId",
+							Value:    user.DomainId,
+							Operator: entity.FindRequestFilterOperatorEqualTo,
+						},
+						entity.FindRequestFilter{
+							Key:      "UserId",
+							Value:    user.UserId,
+							Operator: entity.FindRequestFilterOperatorEqualTo,
+						},
+						entity.FindRequestFilter{
+							Key:      "PositionItem",
+							Value:    j,
+							Operator: entity.FindRequestFilterOperatorEqualTo,
+						},
+						entity.FindRequestFilter{
+							Key:      "Part",
+							Value:    1,
+							Operator: entity.FindRequestFilterOperatorEqualTo,
+						},
+					},
+				})
 				if err != nil {
-					panic(err)
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 				}
-				publicKey := &privateKey.PublicKey
-				privateKeyGen, err := x509util.GenerateKeyPrivate(privateKey)
+				if keyInfoItem == nil {
+					privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+					if err != nil {
+						panic(err)
+					}
+					publicKey := &privateKey.PublicKey
+					privateKeyGen, err := x509util.GenerateKeyPrivate(privateKey)
+					if err != nil {
+						panic(err)
+					}
+					publicKeyGen, err := x509util.GenerateKeyPublic(publicKey)
+					if err != nil {
+						panic(err)
+					}
+					keyInfoItem = &models.KeyInfoItem{
+						UserId:       user.UserId,
+						DomainId:     user.DomainId,
+						PositionItem: int32(j),
+						PositionUser: user.Position,
+						KeyPrivate:   privateKeyGen,
+						KeyPublic:    publicKeyGen,
+						Part:         1,
+					}
+					err = inst.componentsContainer.KeyInfoItemRepository().Create(userContext, keyInfoItem)
+					if err != nil {
+						log.Printf(errutil.Wrap(err, "KeyInfoRepository.Create").Error())
+					}
+				}
+				err = inst.componentsContainer.RecommendService().KeyPublicItemSend(userContext, req.Value, req.Ctx.TokenAgent, keyInfoItem)
 				if err != nil {
-					panic(err)
-				}
-				publicKeyGen, err := x509util.GenerateKeyPublic(publicKey)
-				if err != nil {
-					panic(err)
-				}
-				keyInfoItem = &models.KeyInfoItem{
-					UserId:       user.UserId,
-					DomainId:     user.DomainId,
-					PositionItem: int32(j),
-					PositionUser: user.Position,
-					KeyPrivate:   privateKeyGen,
-					KeyPublic:    publicKeyGen,
-					Part:         1,
-				}
-				err = inst.componentsContainer.KeyInfoItemRepository().Create(userContext, keyInfoItem)
-				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.Create")
+					log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicItemSend").Error())
 				}
 			}
-			err = inst.componentsContainer.RecommendService().KeyPublicItemSend(userContext, req.Value, req.Ctx.TokenAgent, keyInfoItem)
-			if err != nil {
-				return nil, errutil.Wrap(err, "RecommendService.KeyPublicItemSend")
-			}
-		}
+			timeOneUserOnePartEnd := time.Now().UnixMilli()
+			dentaTimeOnePart := timeOneUserOnePartEnd - timeOneUserOnePartStart
+			mutex.Lock()
+			totalTimeKeyItemOnePart += dentaTimeOnePart
+			coutKeyItemOnePart++
+			mutex.Unlock()
+			defer wg.Done()
+		}(user)
 	}
+
+	wg.Wait()
+
+	fmt.Printf("Time gen key %d user: %d \n", coutKeyUser, totalTimeKeyUser)
+	fmt.Printf("Time gen key 1 user: %d \n", int(totalTimeKeyUser)/coutKeyUser)
+	fmt.Printf("Time gen key item one part %d user: %d \n", coutKeyItemOnePart, totalTimeKeyItemOnePart)
+	fmt.Printf("Time gen key item one part 1 user: %d \n", int(totalTimeKeyItemOnePart)/coutKeyItemOnePart)
+	fmt.Printf("Time gen key item two part %d user: %d \n", coutKeyItemTwoPart, totalTimeKeyItemTwoPart)
+	fmt.Printf("Time gen key item two part 1 user: %d \n", int(totalTimeKeyItemTwoPart)/coutKeyItemTwoPart)
 	return &pb.MessageResponse{
 		Ok: true,
 	}, nil
 }
 
 func (inst *AgentpcService) FakeDoSurveyGenerate(ctx context.Context, req *pb.StringRequest) (*pb.MessageResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenantById").Error())
 	}
 	if tenant == nil {
 		return nil, status.Errorf(codes.NotFound, "Tenant not found")
 	}
-	customerID, err := entityutil.GetUserId(userContext)
-	if err != nil {
-		return nil, errutil.Wrap(err, "entityutil.GetUserId")
-	}
-	if customerID != tenant.CustomerId {
+	if userInfo.UserId != tenant.CustomerId {
 		return nil, status.Errorf(codes.PermissionDenied, "PermissionDenied")
 	}
 	users, err := inst.componentsContainer.IdentityService().GetUsers(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenant")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenant").Error())
 	}
 	if len(users) == 0 {
 		return nil, status.Errorf(codes.NotFound, "User not found")
@@ -268,7 +325,7 @@ func (inst *AgentpcService) FakeDoSurveyGenerate(ctx context.Context, req *pb.St
 	for _, user := range users {
 		surveys, err := inst.componentsContainer.SurveyService().GetSurveysByUserId(userContext.Clone().EscalatePrivilege(), user.DomainId, user.UserId)
 		if err != nil {
-			return nil, errutil.Wrap(err, "SurveyService.GetSurveysByUserId")
+			log.Printf(errutil.Wrap(err, "SurveyService.GetSurveysByUserId").Error())
 		}
 		for _, survey := range surveys {
 			for _, question := range survey.Questions {
@@ -284,7 +341,7 @@ func (inst *AgentpcService) FakeDoSurveyGenerate(ctx context.Context, req *pb.St
 					Option:         question.Answers[rating],
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "ResultCardRepository.Create")
+					log.Printf(errutil.Wrap(err, "ResultCardRepository.Create").Error())
 				}
 			}
 		}
@@ -295,34 +352,40 @@ func (inst *AgentpcService) FakeDoSurveyGenerate(ctx context.Context, req *pb.St
 }
 
 func (inst *AgentpcService) FakeSendProcessDataSurveyOnePart(ctx context.Context, req *pb.StringRequest) (*pb.MessageResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenantById").Error())
 	}
 	if tenant == nil {
 		return nil, status.Errorf(codes.NotFound, "Tenant not found")
 	}
-	customerID, err := entityutil.GetUserId(userContext)
-	if err != nil {
-		return nil, errutil.Wrap(err, "entityutil.GetUserId")
-	}
-	if customerID != tenant.CustomerId {
+	if userInfo.UserId != tenant.CustomerId {
 		return nil, status.Errorf(codes.PermissionDenied, "PermissionDenied")
 	}
 	users, err := inst.componentsContainer.IdentityService().GetUsers(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenant")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenant").Error())
 	}
 	if len(users) == 0 {
 		return nil, status.Errorf(codes.NotFound, "User not found")
 	}
 	combinedData, err := inst.componentsContainer.RecommendService().GetCombinedData(userContext, req.Ctx.TokenAgent, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "RecommendService.GetCombinedData")
+		log.Printf(errutil.Wrap(err, "RecommendService.GetCombinedData").Error())
 	}
 	if combinedData == nil {
 		return nil, status.Errorf(codes.NotFound, "CombinedData not found")
@@ -335,9 +398,12 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyOnePart(ctx context.Context
 	if req.Value == combinedData.TenantId2 {
 		sOnePart = combinedData.SOnePart2
 	}
+	totalTimeSendData := int64(0)
+	countUser := 0
 	for _, user := range users {
 		j := 1
 		isStopj := false
+		timeOneUserStart := time.Now().UnixMilli()
 		for t := 1; t <= int(nkOnePart)-1; t++ {
 			if isStopj {
 				break
@@ -363,7 +429,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyOnePart(ctx context.Context
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "ProcessDataSurveyRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "ProcessDataSurveyRepository.FindLast").Error())
 				}
 				processedData := int32(0)
 				if processDataSurvey != nil {
@@ -398,7 +464,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyOnePart(ctx context.Context
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoItemRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "KeyInfoItemRepository.FindLast").Error())
 				}
 
 				// keyInfoIT
@@ -427,34 +493,34 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyOnePart(ctx context.Context
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 				}
 
 				//keyPublicT
 				keyPublicT, err := inst.componentsContainer.RecommendService().KeyPublicUse(userContext, user.DomainId, req.Ctx.TokenAgent, int32(t), 1)
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.KeyPublicUse")
+					log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicUse").Error())
 				}
 				//keyPublicK
 				keyPublicK, err := inst.componentsContainer.RecommendService().KeyPublicUse(userContext, user.DomainId, req.Ctx.TokenAgent, int32(k), 1)
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.KeyPublicUse")
+					log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicUse").Error())
 				}
 				privateKeyIK, err := x509util.ExtractKeyPrivate(keyInfoIK.KeyPrivate)
 				if err != nil {
-					return nil, errutil.Wrap(err, "x509util.ExtractKeyPrivate")
+					log.Printf(errutil.Wrap(err, "x509util.ExtractKeyPrivate").Error())
 				}
 				privateKeyIT, err := x509util.ExtractKeyPrivate(keyInfoIT.KeyPrivate)
 				if err != nil {
-					return nil, errutil.Wrap(err, "x509util.ExtractKeyPrivate")
+					log.Printf(errutil.Wrap(err, "x509util.ExtractKeyPrivate").Error())
 				}
 				publicKeyT, err := x509util.ExtractKeyPublic(keyPublicT.KeyPublic)
 				if err != nil {
-					return nil, errutil.Wrap(err, "x509util.ExtractKeyPrivate")
+					log.Printf(errutil.Wrap(err, "x509util.ExtractKeyPrivate").Error())
 				}
 				publicKeyK, err := x509util.ExtractKeyPublic(keyPublicK.KeyPublic)
 				if err != nil {
-					return nil, errutil.Wrap(err, "x509util.ExtractKeyPrivate")
+					log.Printf(errutil.Wrap(err, "x509util.ExtractKeyPrivate").Error())
 				}
 				valueprivateKeyIK := new(big.Int).SetBytes(privateKeyIK.D.Bytes())
 				kuikKptX, kuikKptY := curve.ScalarMult(publicKeyT.X, publicKeyT.Y, valueprivateKeyIK.Bytes())
@@ -479,7 +545,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyOnePart(ctx context.Context
 					Part:                  1,
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.ProcessedDataSendPart")
+					log.Printf(errutil.Wrap(err, "RecommendService.ProcessedDataSendPart").Error())
 				}
 				if j == int(sOnePart) {
 					isStopj = true
@@ -489,41 +555,53 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyOnePart(ctx context.Context
 				}
 			}
 		}
+		timeOneUserEnd := time.Now().UnixMilli()
+		dentaTime := timeOneUserEnd - timeOneUserStart
+		totalTimeSendData += dentaTime
+		countUser++
 	}
+	fmt.Printf("Time send data of %d user: %d \n", countUser, totalTimeSendData)
+	fmt.Printf("Time send data 1 user: %d \n", int(totalTimeSendData)/countUser)
 	return &pb.MessageResponse{
 		Ok: true,
 	}, nil
 }
 
 func (inst *AgentpcService) FakeSendProcessDataSurveyPhase3TwoPart(ctx context.Context, req *pb.StringRequest) (*pb.MessageResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenantById").Error())
 	}
 	if tenant == nil {
 		return nil, status.Errorf(codes.NotFound, "Tenant not found")
 	}
-	customerID, err := entityutil.GetUserId(userContext)
-	if err != nil {
-		return nil, errutil.Wrap(err, "entityutil.GetUserId")
-	}
-	if customerID != tenant.CustomerId {
+	if userInfo.UserId != tenant.CustomerId {
 		return nil, status.Errorf(codes.PermissionDenied, "PermissionDenied")
 	}
 	users, err := inst.componentsContainer.IdentityService().GetUsers(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenant")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenant").Error())
 	}
 	if len(users) == 0 {
 		return nil, status.Errorf(codes.NotFound, "User not found")
 	}
 	combinedData, err := inst.componentsContainer.RecommendService().GetCombinedData(userContext, req.Ctx.TokenAgent, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "RecommendService.GetCombinedData")
+		log.Printf(errutil.Wrap(err, "RecommendService.GetCombinedData").Error())
 	}
 	if combinedData == nil {
 		return nil, status.Errorf(codes.NotFound, "CombinedData not found")
@@ -531,7 +609,10 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase3TwoPart(ctx context.C
 	if combinedData.TenantId1 != req.Value {
 		return nil, status.Errorf(codes.PermissionDenied, "Tenant is not allow create phase3 two part")
 	}
+	totalTimeSendDataPhase3 := int64(0)
+	countUser := 0
 	for _, user := range users {
+		timeOneUserStart := time.Now().UnixMilli()
 		for j := 1; j <= int(combinedData.STwoPart); j++ {
 			keyInfoItemPhase3, err := inst.componentsContainer.KeyInfoItemPhase3Repository().FindLast(userContext, &entity.FindRequest{
 				Filters: []entity.FindRequestFilter{
@@ -553,7 +634,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase3TwoPart(ctx context.C
 				},
 			})
 			if err != nil {
-				return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+				log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 			}
 			if keyInfoItemPhase3 == nil {
 				privateKeyCij, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -580,12 +661,12 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase3TwoPart(ctx context.C
 				}
 				err = inst.componentsContainer.KeyInfoItemPhase3Repository().Create(userContext, keyInfoItemPhase3)
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.Create")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.Create").Error())
 				}
 			}
 			privateKey, err := x509util.ExtractKeyPrivate(keyInfoItemPhase3.KeyPrivate)
 			if err != nil {
-				return nil, errutil.Wrap(err, "x509util.ExtractKeyPrivate")
+				log.Printf(errutil.Wrap(err, "x509util.ExtractKeyPrivate").Error())
 			}
 			ite := int(math.Ceil(float64(j) / float64(combinedData.NumberItem2)))
 			resultCard, err := inst.componentsContainer.ResultCardRepository().FindLast(userContext, &entity.FindRequest{
@@ -608,7 +689,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase3TwoPart(ctx context.C
 				},
 			})
 			if err != nil {
-				return nil, errutil.Wrap(err, "ResultCardRepository.FindLast")
+				log.Printf(errutil.Wrap(err, "ResultCardRepository.FindLast").Error())
 			}
 			resultCardData := int32(0)
 			if resultCard != nil {
@@ -632,7 +713,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase3TwoPart(ctx context.C
 				},
 			})
 			if err != nil {
-				return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+				log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 			}
 			publicKeyXi, err := x509util.ExtractKeyPublic(keyInfoXi.KeyPublic)
 			if err != nil {
@@ -657,44 +738,57 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase3TwoPart(ctx context.C
 				Part:                 2,
 			})
 			if err != nil {
-				return nil, errutil.Wrap(err, "RecommendService.ProcessedDataSendPhase3TwoPart")
+				log.Printf(errutil.Wrap(err, "RecommendService.ProcessedDataSendPhase3TwoPart").Error())
 			}
 		}
+		timeOneUserEnd := time.Now().UnixMilli()
+		dentaTime := timeOneUserEnd - timeOneUserStart
+		totalTimeSendDataPhase3 += dentaTime
+		countUser++
 	}
+
+	fmt.Printf("Time send data phase 3 of %d user: %d \n", countUser, totalTimeSendDataPhase3)
+	fmt.Printf("Time send data phase 3 of 1 user: %d \n", int(totalTimeSendDataPhase3)/countUser)
 	return &pb.MessageResponse{
 		Ok: true,
 	}, nil
 }
 
 func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.Context, req *pb.StringRequest) (*pb.MessageResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenantById").Error())
 	}
 	if tenant == nil {
 		return nil, status.Errorf(codes.NotFound, "Tenant not found")
 	}
-	customerID, err := entityutil.GetUserId(userContext)
-	if err != nil {
-		return nil, errutil.Wrap(err, "entityutil.GetUserId")
-	}
-	if customerID != tenant.CustomerId {
+	if userInfo.UserId != tenant.CustomerId {
 		return nil, status.Errorf(codes.PermissionDenied, "PermissionDenied")
 	}
 	users, err := inst.componentsContainer.IdentityService().GetUsers(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenant")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenant").Error())
 	}
 	if len(users) == 0 {
 		return nil, status.Errorf(codes.NotFound, "User not found")
 	}
 	combinedData, err := inst.componentsContainer.RecommendService().GetCombinedData(userContext, req.Ctx.TokenAgent, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "RecommendService.GetCombinedData")
+		log.Printf(errutil.Wrap(err, "RecommendService.GetCombinedData").Error())
 	}
 	if combinedData == nil {
 		return nil, status.Errorf(codes.NotFound, "CombinedData not found")
@@ -702,9 +796,13 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 	if combinedData.TenantId2 != req.Value {
 		return nil, status.Errorf(codes.PermissionDenied, "Tenant is not allow create phase4 two part")
 	}
+
+	totalTimeSendData := int64(0)
+	countUser := 0
 	for _, user := range users {
 		j := 1
 		isStopj := false
+		timeOneUserStart := time.Now().UnixMilli()
 		processedDataSendPhase3, err := inst.componentsContainer.RecommendService().ProcessedDataSendPhase3Get(userContext, user.DomainId, req.Ctx.TokenAgent, &recommendApi.RecommendApiPhase3TwoPart{
 			UserId:       user.UserId,
 			PositionUser: user.Position,
@@ -712,10 +810,10 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 			Part:         2,
 		})
 		if err != nil {
-			return nil, errutil.Wrap(err, "RecommendService.ProcessedDataSendPhase3Get")
+			log.Printf(errutil.Wrap(err, "RecommendService.ProcessedDataSendPhase3Get").Error())
 		}
 		if processedDataSendPhase3 == nil {
-			return nil, errutil.NewWithMessage("processedDataSendPhase3 Not found")
+			log.Printf(errutil.NewWithMessage("processedDataSendPhase3 Not found").Error())
 		}
 		pointC1, err := hex.DecodeString(processedDataSendPhase3.ProcessedDataC1)
 		if err != nil {
@@ -765,7 +863,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "ResultCardRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "ResultCardRepository.FindLast").Error())
 				}
 				resultCardData := int32(0)
 				if resultCard != nil {
@@ -800,7 +898,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 				}
 
 				privateIK2, err := x509util.ExtractKeyPrivate(keyInfoIK2.KeyPrivate)
@@ -811,7 +909,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 				//keyPublicT
 				keyPublicT, err := inst.componentsContainer.RecommendService().KeyPublicUse(userContext, user.DomainId, req.Ctx.TokenAgent, int32(t), 2)
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.KeyPublicUse")
+					log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicUse").Error())
 				}
 
 				publicPt, err := x509util.ExtractKeyPublic(keyPublicT.KeyPublic)
@@ -844,7 +942,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 				}
 				privY, err := x509util.ExtractKeyPrivate(keyInfoYi.KeyPrivate)
 				if err != nil {
@@ -881,7 +979,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 				}
 				privateIT2, err := x509util.ExtractKeyPrivate(keyInfoIT2.KeyPrivate)
 				if err != nil {
@@ -891,7 +989,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 				//keyPublicK
 				keyPublicK, err := inst.componentsContainer.RecommendService().KeyPublicUse(userContext, user.DomainId, req.Ctx.TokenAgent, int32(k), 2)
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.KeyPublicUse")
+					log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicUse").Error())
 				}
 				publicPk, err := x509util.ExtractKeyPublic(keyPublicK.KeyPublic)
 				if err != nil {
@@ -939,7 +1037,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 					Part:                  2,
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.ProcessedDataSendOnePart")
+					log.Printf(errutil.Wrap(err, "RecommendService.ProcessedDataSendOnePart").Error())
 				}
 
 				if j == int(combinedData.STwoPart) {
@@ -950,41 +1048,53 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase4TwoPart(ctx context.C
 				}
 			}
 		}
+		timeOneUserEnd := time.Now().UnixMilli()
+		dentaTime := timeOneUserEnd - timeOneUserStart
+		totalTimeSendData += dentaTime
+		countUser++
 	}
+	fmt.Printf("Time send data phase 4 of %d user: %d \n", countUser, totalTimeSendData)
+	fmt.Printf("Time send data phase 4 of 1 user: %d \n", int(totalTimeSendData)/countUser)
 	return &pb.MessageResponse{
 		Ok: true,
 	}, nil
 }
 
 func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.Context, req *pb.StringRequest) (*pb.MessageResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenantById").Error())
 	}
 	if tenant == nil {
 		return nil, status.Errorf(codes.NotFound, "Tenant not found")
 	}
-	customerID, err := entityutil.GetUserId(userContext)
-	if err != nil {
-		return nil, errutil.Wrap(err, "entityutil.GetUserId")
-	}
-	if customerID != tenant.CustomerId {
+	if userInfo.UserId != tenant.CustomerId {
 		return nil, status.Errorf(codes.PermissionDenied, "PermissionDenied")
 	}
 	users, err := inst.componentsContainer.IdentityService().GetUsers(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenant")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenant").Error())
 	}
 	if len(users) == 0 {
 		return nil, status.Errorf(codes.NotFound, "User not found")
 	}
 	combinedData, err := inst.componentsContainer.RecommendService().GetCombinedData(userContext, req.Ctx.TokenAgent, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "RecommendService.GetCombinedData")
+		log.Printf(errutil.Wrap(err, "RecommendService.GetCombinedData").Error())
 	}
 	if combinedData == nil {
 		return nil, status.Errorf(codes.NotFound, "CombinedData not found")
@@ -992,9 +1102,12 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 	if combinedData.TenantId1 != req.Value {
 		return nil, status.Errorf(codes.PermissionDenied, "Tenant is not allow create phase5 two part")
 	}
+	totalTimeSendData := int64(0)
+	countUser := 0
 	for _, user := range users {
 		j := 1
 		isStopj := false
+		timeOneUserStart := time.Now().UnixMilli()
 		processedDataSendPhase4, err := inst.componentsContainer.RecommendService().ProcessedDataSendPhase4Get(userContext, user.DomainId, req.Ctx.TokenAgent, &recommendApi.RecommendApiPhase4TwoPart{
 			UserId:       user.UserId,
 			PositionUser: user.Position,
@@ -1002,10 +1115,10 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 			Part:         2,
 		})
 		if err != nil {
-			return nil, errutil.Wrap(err, "RecommendService.ProcessedDataSendPhase3Get")
+			log.Printf(errutil.Wrap(err, "RecommendService.ProcessedDataSendPhase3Get").Error())
 		}
 		if processedDataSendPhase4 == nil {
-			return nil, errutil.NewWithMessage("processedDataSendPhase4 Not found")
+			log.Printf(errutil.NewWithMessage("processedDataSendPhase4 Not found").Error())
 		}
 		pointR1, err := hex.DecodeString(processedDataSendPhase4.ProcessedDataR1)
 		if err != nil {
@@ -1051,10 +1164,10 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 				}
 				if keyInfoItemPhase3 == nil {
-					return nil, errutil.NewWithMessage("keyInfoItemPhase3 not found")
+					log.Printf(errutil.NewWithMessage("keyInfoItemPhase3 not found").Error())
 				}
 				privateCij2, err := x509util.ExtractKeyPrivate(keyInfoItemPhase3.KeyPrivate)
 				if err != nil {
@@ -1099,7 +1212,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 				}
 				privateIT1, err := x509util.ExtractKeyPrivate(keyInfoIT1.KeyPrivate)
 				if err != nil {
@@ -1109,7 +1222,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 				//keyPublicK
 				keyPublicK, err := inst.componentsContainer.RecommendService().KeyPublicUse(userContext, user.DomainId, req.Ctx.TokenAgent, int32(k), 2)
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.KeyPublicUse")
+					log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicUse").Error())
 				}
 				publicPk, err := x509util.ExtractKeyPublic(keyPublicK.KeyPublic)
 				if err != nil {
@@ -1152,7 +1265,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 					},
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "KeyInfoRepository.FindLast")
+					log.Printf(errutil.Wrap(err, "KeyInfoRepository.FindLast").Error())
 				}
 				privateIK1, err := x509util.ExtractKeyPrivate(keyInfoIK1.KeyPrivate)
 				if err != nil {
@@ -1162,7 +1275,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 				//keyPublicT
 				keyPublicT, err := inst.componentsContainer.RecommendService().KeyPublicUse(userContext, user.DomainId, req.Ctx.TokenAgent, int32(t), 2)
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.KeyPublicUse")
+					log.Printf(errutil.Wrap(err, "RecommendService.KeyPublicUse").Error())
 				}
 				publicPt, err := x509util.ExtractKeyPublic(keyPublicT.KeyPublic)
 				if err != nil {
@@ -1185,7 +1298,7 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 					Part:                  2,
 				})
 				if err != nil {
-					return nil, errutil.Wrap(err, "RecommendService.ProcessedDataSendPart")
+					log.Printf(errutil.Wrap(err, "RecommendService.ProcessedDataSendPart").Error())
 				}
 				if j == int(combinedData.STwoPart) {
 					isStopj = true
@@ -1195,34 +1308,46 @@ func (inst *AgentpcService) FakeSendProcessDataSurveyPhase5TwoPart(ctx context.C
 				}
 			}
 		}
+		timeOneUserEnd := time.Now().UnixMilli()
+		dentaTime := timeOneUserEnd - timeOneUserStart
+		totalTimeSendData += dentaTime
+		countUser++
 	}
+	fmt.Printf("Time send data phase 5 of %d user: %d \n", countUser, totalTimeSendData)
+	fmt.Printf("Time send data phase 5 of 1 user: %d \n", int(totalTimeSendData)/countUser)
 	return &pb.MessageResponse{
 		Ok: true,
 	}, nil
 }
 
 func (inst *AgentpcService) ProcessDataSurvey2(ctx context.Context, req *pb.StringRequest) (*pb.MessageResponse, error) {
-	userContext, err := inst.componentsContainer.AuthService().Authentication(ctx, req.Ctx.AccessToken, req.Ctx.DomainId, "@any", "@any", &grpcauth.AuthenOption{})
-	if err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, errutil.Message(err))
+	if req.Ctx.TokenAgent == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated")
 	}
+	userContext := entity.NewUserContext("default")
+	userInfo := inst.componentsContainer.IdentityAuthenService().GetUserInfo(userContext, req.Ctx.TokenAgent)
+	if userInfo == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "userInfo Unauthenticated")
+	}
+	accessToken := inst.componentsContainer.IdentityAuthenService().AccessToken(userContext, req.Ctx.TokenAgent)
+
+	if accessToken == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "accessToken Unauthenticated")
+	}
+	userContext.SetAccessToken(accessToken)
 	tenant, err := inst.componentsContainer.CustomerService().GetTenantById(userContext, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "CustomerService.GetTenantById")
+		log.Printf(errutil.Wrap(err, "CustomerService.GetTenantById").Error())
 	}
 	if tenant == nil {
 		return nil, status.Errorf(codes.NotFound, "Tenant not found")
 	}
-	customerID, err := entityutil.GetUserId(userContext)
-	if err != nil {
-		return nil, errutil.Wrap(err, "entityutil.GetUserId")
-	}
-	if customerID != tenant.CustomerId {
+	if userInfo.UserId != tenant.CustomerId {
 		return nil, status.Errorf(codes.PermissionDenied, "PermissionDenied")
 	}
 	combinedData, err := inst.componentsContainer.RecommendService().GetCombinedData(userContext, req.Ctx.TokenAgent, req.Value)
 	if err != nil {
-		return nil, errutil.Wrap(err, "RecommendService.GetCombinedData")
+		log.Printf(errutil.Wrap(err, "RecommendService.GetCombinedData").Error())
 	}
 	if combinedData == nil {
 		return nil, status.Errorf(codes.NotFound, "CombinedData not found")
@@ -1254,7 +1379,7 @@ func (inst *AgentpcService) ProcessDataSurvey2(ctx context.Context, req *pb.Stri
 				},
 			})
 			if err != nil {
-				return nil, errutil.Wrap(err, "ResultCardRepository.FindLast")
+				log.Printf(errutil.Wrap(err, "ResultCardRepository.FindLast").Error())
 			}
 			jv := int32(j) % combinedData.NumberItem2
 			if int32(j)%combinedData.NumberItem2 == 0 {
@@ -1280,7 +1405,7 @@ func (inst *AgentpcService) ProcessDataSurvey2(ctx context.Context, req *pb.Stri
 				},
 			})
 			if err != nil {
-				return nil, errutil.Wrap(err, "ResultCardRepository.FindLast")
+				log.Printf(errutil.Wrap(err, "ResultCardRepository.FindLast").Error())
 			}
 			sumRating += resultCard2.PositionOption * resultCard1.PositionOption
 			positionOriginal1 = int32(ju)

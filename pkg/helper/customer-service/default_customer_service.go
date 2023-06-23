@@ -81,6 +81,31 @@ func (inst *DefaultCustomerService) GetTenant(userContext entity.UserContext, do
 	return tenant, nil
 }
 
+func (inst *DefaultCustomerService) GetAllTenantByCustomer(userContext entity.UserContext) ([]models.Tenant, error) {
+	response, _, err := inst.apiClient().CustomerServiceApi.GetAll(userContext.Context(), "default", &apiclient.GetAllOpts{
+		CtxAccessToken: optional.NewString(userContext.AccessToken()),
+	})
+	if err != nil {
+		if detailedError, ok := err.(apiclient.GenericSwaggerError); ok {
+			err = apiclientutil.Error(detailedError.Body())
+		}
+		return nil, errutil.Wrap(apiclientutil.NormalizeError(err), "IdentityCustomerServiceApi.Login")
+	}
+
+	tenants := []models.Tenant{}
+
+	for _, tenant := range response.Data {
+		tenantTmp := models.Tenant{}
+		err = reflectutil.Convert(tenant, &tenantTmp)
+		if err != nil {
+			return nil, errutil.Wrap(err, "reflectutil.Convert")
+		}
+		tenants = append(tenants, tenantTmp)
+	}
+
+	return tenants, nil
+}
+
 func (inst *DefaultCustomerService) GetTenantById(userContext entity.UserContext, tenantId string) (*models.Tenant, error) {
 	response, _, err := inst.apiClient().CustomerServiceApi.GetById(userContext.Context(), "default", tenantId, &apiclient.GetByIdOpts{
 		CtxAccessToken: optional.NewString(userContext.AccessToken()),

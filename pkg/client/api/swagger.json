@@ -133,6 +133,13 @@
             "type": "string"
           },
           {
+            "name": "ctx.meta[string][string][string][string][string]",
+            "description": "This is a request variable of the map type. The query format is \"map_name[key]=value\", e.g. If the map name is Age, the key type is string, and the value type is integer, the query parameter is expressed as Age[\"bob\"]=18",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
             "name": "ctx.token_agent",
             "in": "query",
             "required": false,
@@ -187,6 +194,13 @@
             "type": "string"
           },
           {
+            "name": "ctx.meta[string][string][string]",
+            "description": "This is a request variable of the map type. The query format is \"map_name[key]=value\", e.g. If the map name is Age, the key type is string, and the value type is integer, the query parameter is expressed as Age[\"bob\"]=18",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
             "name": "ctx.token_agent",
             "in": "query",
             "required": false,
@@ -235,6 +249,13 @@
             "type": "string"
           },
           {
+            "name": "ctx.meta[string][string][string][string][string][string]",
+            "description": "This is a request variable of the map type. The query format is \"map_name[key]=value\", e.g. If the map name is Age, the key type is string, and the value type is integer, the query parameter is expressed as Age[\"bob\"]=18",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
             "name": "ctx.token_agent",
             "in": "query",
             "required": false,
@@ -278,6 +299,13 @@
           },
           {
             "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.meta[string][string][string][string]",
+            "description": "This is a request variable of the map type. The query format is \"map_name[key]=value\", e.g. If the map name is Age, the key type is string, and the value type is integer, the query parameter is expressed as Age[\"bob\"]=18",
             "in": "query",
             "required": false,
             "type": "string"
@@ -433,6 +461,13 @@
           },
           {
             "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.meta[string][string]",
+            "description": "This is a request variable of the map type. The query format is \"map_name[key]=value\", e.g. If the map name is Age, the key type is string, and the value type is integer, the query parameter is expressed as Age[\"bob\"]=18",
             "in": "query",
             "required": false,
             "type": "string"
@@ -895,6 +930,61 @@
         ]
       }
     },
+    "/tenants/get_all": {
+      "get": {
+        "operationId": "GetAllTenant",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/agent_pcListTenantResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "ctx.domain_id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.meta[string][string][string][string][string][string][string]",
+            "description": "This is a request variable of the map type. The query format is \"map_name[key]=value\", e.g. If the map name is Age, the key type is string, and the value type is integer, the query parameter is expressed as Age[\"bob\"]=18",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.token_agent",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.part",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentpcService"
+        ]
+      }
+    },
     "/users": {
       "get": {
         "operationId": "GetById",
@@ -921,6 +1011,13 @@
           },
           {
             "name": "ctx.access_token",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ctx.meta[string]",
+            "description": "This is a request variable of the map type. The query format is \"map_name[key]=value\", e.g. If the map name is Age, the key type is string, and the value type is integer, the query parameter is expressed as Age[\"bob\"]=18",
             "in": "query",
             "required": false,
             "type": "string"
@@ -1038,7 +1135,7 @@
         "access_token": {
           "type": "string"
         },
-        "meta": {
+        "meta[string][string][string][string][string][string][string]": {
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -1058,6 +1155,7 @@
         "data": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/agent_pcResultRecommend"
           }
         }
@@ -1069,6 +1167,7 @@
         "data": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/agent_pcCategoryRecommend"
           }
         },
@@ -1084,6 +1183,7 @@
         "data": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/agent_pcCategory"
           }
         },
@@ -1099,7 +1199,24 @@
         "data": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/agent_pcSurvey"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "agent_pcListTenantResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/agent_pcTenant"
           }
         },
         "total": {
@@ -1306,6 +1423,7 @@
         "questions": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/agent_pcQuestion"
           }
         },
@@ -1327,6 +1445,37 @@
           "type": "string"
         },
         "name": {
+          "type": "string"
+        }
+      }
+    },
+    "agent_pcTenant": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "created_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "updated_time": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "customer_id": {
           "type": "string"
         }
       }
@@ -1372,6 +1521,7 @@
         "permissions": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/agent_pcPermission"
           }
         },
@@ -1433,6 +1583,7 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }
