@@ -32,8 +32,8 @@ components:
       connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/key_info.db"
       encryption_enabled: false
       encryption_key: "thteam47"
-      max_idle_connections: 30
-      max_open_connections: 30
+      max_idle_connections: 20
+      max_open_connections: 20
       log_mode: false
   key-info-item-repository:
     sqlite-client-wrapper:
@@ -41,8 +41,8 @@ components:
       connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/key_info.db"
       encryption_enabled: false
       encryption_key: "thteam47"
-      max_idle_connections: 30
-      max_open_connections: 30
+      max_idle_connections: 20
+      max_open_connections: 20
       log_mode: false
   key-info-item-phase3-repository:
     sqlite-client-wrapper:
@@ -50,8 +50,8 @@ components:
       connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/key_info_phase3.db"
       encryption_enabled: false
       encryption_key: "thteam47"
-      max_idle_connections: 30
-      max_open_connections: 30
+      max_idle_connections: 20
+      max_open_connections: 20
       log_mode: false
   result-card-repository:
     sqlite-client-wrapper:
@@ -59,8 +59,8 @@ components:
       connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/survey.db"
       encryption_enabled: false
       encryption_key: "thteam47"
-      max_idle_connections: 30
-      max_open_connections: 30
+      max_idle_connections: 20
+      max_open_connections: 20
       log_mode: false
   process-data-survey-repository:
     sqlite-client-wrapper:
@@ -68,8 +68,8 @@ components:
       connection_str: "/home/unutu/go/src/github.com/thteam47/go-agent-pc/run/data/process_data_survey.db"
       encryption_enabled: false
       encryption_key: "thteam47"
-      max_idle_connections: 30
-      max_open_connections: 30
+      max_idle_connections: 20
+      max_open_connections: 20
       log_mode: false
   identity-authen-service:
     port: "9001"
